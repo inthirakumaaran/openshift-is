@@ -624,7 +624,7 @@ objects:
     spec:
       minReadySeconds: 30
       progressDeadlineSeconds: 600
-      replicas: '${REPLICAS}'
+      replicas: 2
       selector:
         app: wso2is
         deployment: wso2is
