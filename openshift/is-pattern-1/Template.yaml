@@ -1,919 +1,789 @@
-# Copyright (c) 2020, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-apiVersion: v1
 kind: Template
+apiVersion: template.openshift.io/v1
 metadata:
   name: wso2is
+  namespace: wso2
+  selfLink: /apis/template.openshift.io/v1/namespaces/wso2/templates/wso2is
+  uid: 73295644-ebdd-46d8-9c62-d20ced382926
+  resourceVersion: '39098363'
+  creationTimestamp: '2020-08-06T09:56:54Z'
   annotations:
-    openshift.io/display-name: WSO2 Identity Server
     description: >-
-      WSO2 Identity Server is an API-driven open source IAM product designed
-      to help you build effective CIAM solutions. It is based on open standards
+      WSO2 Identity Server is an API-driven open source IAM product designed to
+      help you build effective CIAM solutions. It is based on open standards
       such as SAML, OAuth and OIDC.
 
       This template create WSO2 Identity Server v5.9.0 cluster. Parameters can
-      be used to change the number of nodes and other setting releted to deployment.
-    openshift.io/documentation-url: https://is.docs.wso2.com/en/latest/
-    openshift.io/provider-display-name: WSO2, Inc.
-    openshift.io/support-url: https://wso2.com/
+      be used to change the number of nodes and other setting releted to
+      deployment.
+    openshift.io/display-name: WSO2 Identity Server
+    openshift.io/documentation-url: 'https://is.docs.wso2.com/en/latest/'
+    openshift.io/provider-display-name: 'WSO2, Inc.'
+    openshift.io/support-url: 'https://wso2.com/'
 objects:
-- apiVersion: image.openshift.io/v1
-  kind: ImageStream
-  metadata:
-    name: ${NAME}-init-image-stream
-  spec:
-    tags:
-      - name: latest
-        from:
-          kind: DockerImage
-          name: 'busybox:1.31'
-
-- apiVersion: v1
-  kind: ServiceAccount
-  metadata:
-    name: ${WSO2_IS_SERVICE_ACCOUNT_NAME}
-
-- apiVersion: security.openshift.io/v1
-  kind: SecurityContextConstraints
-  metadata:
-    name: ${NAME}-scc-account-privileged
-  runAsUser:
-    type: RunAsAny
-  seLinuxContext:
-    type: RunAsAny
-  users:
-  - system:serviceaccount:${OPENSHIFT_PROJECT_NAME}:${WSO2_IS_SERVICE_ACCOUNT_NAME}
-  volumes:
-  - '*'
-
-- apiVersion: rbac.authorization.k8s.io/v1
-  kind: Role
-  metadata:
-    name: endpoints-reader-role
-  rules:
-  - apiGroups:
-    - ""
-    resources:
-    - endpoints
-    verbs:
-    - get
-    - list
-
-- apiVersion: rbac.authorization.k8s.io/v1
-  kind: RoleBinding
-  metadata:
-    name: endpoints-reader-role-wso2-binding
-  roleRef:
-    apiGroup: rbac.authorization.k8s.io
+  - apiVersion: image.openshift.io/v1
+    kind: ImageStream
+    metadata:
+      name: '${NAME}-init-image-stream'
+    spec:
+      tags:
+        - name: latest
+          from:
+            kind: DockerImage
+            name: 'busybox:1.31'
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: '${WSO2_IS_SERVICE_ACCOUNT_NAME}'
+  - apiVersion: security.openshift.io/v1
+    kind: SecurityContextConstraints
+    metadata:
+      name: '${NAME}-scc-account-privileged'
+    runAsUser:
+      type: RunAsAny
+    seLinuxContext:
+      type: RunAsAny
+    users:
+      - >-
+        system:serviceaccount:${OPENSHIFT_PROJECT_NAME}:${WSO2_IS_SERVICE_ACCOUNT_NAME}
+    volumes:
+      - '*'
+  - apiVersion: rbac.authorization.k8s.io/v1
     kind: Role
-    name: endpoints-reader-role
-  subjects:
-  - kind: ServiceAccount
-    name: ${WSO2_IS_SERVICE_ACCOUNT_NAME}
-    namespace: ${OPENSHIFT_PROJECT_NAME}
+    metadata:
+      name: endpoints-reader-role
+    rules:
+      - apiGroups:
+          - ''
+        resources:
+          - endpoints
+        verbs:
+          - get
+          - list
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: endpoints-reader-role-wso2-binding
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: endpoints-reader-role
+    subjects:
+      - kind: ServiceAccount
+        name: '${WSO2_IS_SERVICE_ACCOUNT_NAME}'
+        namespace: '${OPENSHIFT_PROJECT_NAME}'
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: identity-server-bin
+    data:
+      wso2server.sh: >-
+        #!/bin/sh
 
-- apiVersion: v1
-  kind: PersistentVolume
-  metadata:
-    name: ${NAME}-userstore
-    labels:
-      volumeName: ${NAME}-userstore
-  spec:
-    accessModes:
-    - ReadWriteOnce
-    volumeMode: Filesystem
-    capacity:
-      storage: 2Gi
-    nfs:
-      server: ${NFS_SERVER_IP}
-      path: ${NFS_SHARE_USERSTORE}
+        #
+        ----------------------------------------------------------------------------
 
-- apiVersion: v1
-  kind: PersistentVolumeClaim
-  metadata:
-    name: ${NAME}-userstore
-  spec:
-    accessModes:
-    - ReadWriteOnce
-    resources:
-      requests:
-        storage: 2Gi
-    volumeMode: Filesystem
-    selector:
-      matchLabels:
-        volumeName: ${NAME}-userstore
-        
-- apiVersion: v1
-  kind: ConfigMap
-  metadata:
-    name: identity-server-bin
-  data:
-    wso2server.sh: >-
-      #!/bin/sh
+        #  Copyright 2005-2012 WSO2, Inc. http://www.wso2.org
 
-      #
-      ----------------------------------------------------------------------------
+        #
 
-      #  Copyright 2005-2012 WSO2, Inc. http://www.wso2.org
+        #  Licensed under the Apache License, Version 2.0 (the "License");
 
-      #
+        #  you may not use this file except in compliance with the License.
 
-      #  Licensed under the Apache License, Version 2.0 (the "License");
+        #  You may obtain a copy of the License at
 
-      #  you may not use this file except in compliance with the License.
+        #
 
-      #  You may obtain a copy of the License at
+        #      http://www.apache.org/licenses/LICENSE-2.0
 
-      #
+        #
 
-      #      http://www.apache.org/licenses/LICENSE-2.0
+        #  Unless required by applicable law or agreed to in writing, software
 
-      #
+        #  distributed under the License is distributed on an "AS IS" BASIS,
 
-      #  Unless required by applicable law or agreed to in writing, software
+        #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+        implied.
 
-      #  distributed under the License is distributed on an "AS IS" BASIS,
+        #  See the License for the specific language governing permissions and
 
-      #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+        #  limitations under the License.
 
-      #  See the License for the specific language governing permissions and
 
-      #  limitations under the License.
+        #
+        ----------------------------------------------------------------------------
 
+        # Main Script for the WSO2 Carbon Server
 
-      #
-      ----------------------------------------------------------------------------
+        #
 
-      # Main Script for the WSO2 Carbon Server
+        # Environment Variable Prequisites
 
-      #
+        #
 
-      # Environment Variable Prequisites
+        #   CARBON_HOME   Home of WSO2 Carbon installation. If not set I will 
+        try
 
-      #
+        #                   to figure it out.
 
-      #   CARBON_HOME   Home of WSO2 Carbon installation. If not set I will  try
+        #
 
-      #                   to figure it out.
+        #   JAVA_HOME       Must point at your Java Development Kit
+        installation.
 
-      #
+        #
 
-      #   JAVA_HOME       Must point at your Java Development Kit installation.
+        #   JAVA_OPTS       (Optional) Java runtime options used when the
+        commands
 
-      #
+        #                   is executed.
 
-      #   JAVA_OPTS       (Optional) Java runtime options used when the commands
+        #
 
-      #                   is executed.
+        # NOTE: Borrowed generously from Apache Tomcat startup scripts.
 
-      #
+        #
+        -----------------------------------------------------------------------------
 
-      # NOTE: Borrowed generously from Apache Tomcat startup scripts.
 
-      #
-      -----------------------------------------------------------------------------
+        # OS specific support.  $var _must_ be set to either true or false.
 
+        #ulimit -n 100000
 
-      # OS specific support.  $var _must_ be set to either true or false.
 
-      #ulimit -n 100000
+        cygwin=false;
 
+        darwin=false;
 
-      cygwin=false;
+        os400=false;
 
-      darwin=false;
+        mingw=false;
 
-      os400=false;
+        case "`uname`" in
 
-      mingw=false;
+        CYGWIN*) cygwin=true;;
 
-      case "`uname`" in
+        MINGW*) mingw=true;;
 
-      CYGWIN*) cygwin=true;;
+        OS400*) os400=true;;
 
-      MINGW*) mingw=true;;
+        Darwin*) darwin=true
+                if [ -z "$JAVA_VERSION" ] ; then
+                     JAVA_VERSION="CurrentJDK"
+                   else
+                     echo "Using Java version: $JAVA_VERSION"
+                   fi
+                   if [ -z "$JAVA_HOME" ] ; then
+                     JAVA_HOME=/System/Library/Frameworks/JavaVM.framework/Versions/${JAVA_VERSION}/Home
+                   fi
+                   ;;
+        esac
 
-      OS400*) os400=true;;
 
-      Darwin*) darwin=true
-              if [ -z "$JAVA_VERSION" ] ; then
-                   JAVA_VERSION="CurrentJDK"
-                 else
-                   echo "Using Java version: $JAVA_VERSION"
-                 fi
-                 if [ -z "$JAVA_HOME" ] ; then
-                   JAVA_HOME=/System/Library/Frameworks/JavaVM.framework/Versions/${JAVA_VERSION}/Home
-                 fi
-                 ;;
-      esac
+        # resolve links - $0 may be a softlink
 
+        PRG="$0"
 
-      # resolve links - $0 may be a softlink
 
-      PRG="$0"
-
-
-      while [ -h "$PRG" ]; do
-        ls=`ls -ld "$PRG"`
-        link=`expr "$ls" : '.*-> \(.*\)$'`
-        if expr "$link" : '.*/.*' > /dev/null; then
-          PRG="$link"
-        else
-          PRG=`dirname "$PRG"`/"$link"
-        fi
-      done
-
-
-      # Get standard environment variables
-
-      PRGDIR=`dirname "$PRG"`
-
-
-      # Only set CARBON_HOME if not already set
-
-      [ -z "$CARBON_HOME" ] && CARBON_HOME=`cd "$PRGDIR/.." ; pwd`
-
-
-      # Set AXIS2_HOME. Needed for One Click JAR Download
-
-      AXIS2_HOME="$CARBON_HOME"
-
-
-      # For Cygwin, ensure paths are in UNIX format before anything is touched
-
-      if $cygwin; then
-        [ -n "$JAVA_HOME" ] && JAVA_HOME=`cygpath --unix "$JAVA_HOME"`
-        [ -n "$CARBON_HOME" ] && CARBON_HOME=`cygpath --unix "$CARBON_HOME"`
-        [ -n "$AXIS2_HOME" ] && CARBON_HOME=`cygpath --unix "$CARBON_HOME"`
-      fi
-
-
-      # For OS400
-
-      if $os400; then
-        # Set job priority to standard for interactive (interactive - 6) by using
-        # the interactive priority - 6, the helper threads that respond to requests
-        # will be running at the same priority as interactive jobs.
-        COMMAND='chgjob job('$JOBNAME') runpty(6)'
-        system $COMMAND
-
-        # Enable multi threading
-        QIBM_MULTI_THREADED=Y
-        export QIBM_MULTI_THREADED
-      fi
-
-
-      # For Migwn, ensure paths are in UNIX format before anything is touched
-
-      if $mingw ; then
-        [ -n "$CARBON_HOME" ] &&
-          CARBON_HOME="`(cd "$CARBON_HOME"; pwd)`"
-        [ -n "$JAVA_HOME" ] &&
-          JAVA_HOME="`(cd "$JAVA_HOME"; pwd)`"
-        [ -n "$AXIS2_HOME" ] &&
-          CARBON_HOME="`(cd "$CARBON_HOME"; pwd)`"
-        # TODO classpath?
-      fi
-
-
-      if [ -z "$JAVACMD" ] ; then
-        if [ -n "$JAVA_HOME"  ] ; then
-          if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
-            # IBM's JDK on AIX uses strange locations for the executables
-            JAVACMD="$JAVA_HOME/jre/sh/java"
+        while [ -h "$PRG" ]; do
+          ls=`ls -ld "$PRG"`
+          link=`expr "$ls" : '.*-> \(.*\)$'`
+          if expr "$link" : '.*/.*' > /dev/null; then
+            PRG="$link"
           else
-            JAVACMD="$JAVA_HOME/bin/java"
+            PRG=`dirname "$PRG"`/"$link"
           fi
-        else
-          JAVACMD=java
-        fi
-      fi
-
-
-      if [ ! -x "$JAVACMD" ] ; then
-        echo "Error: JAVA_HOME is not defined correctly."
-        echo " CARBON cannot execute $JAVACMD"
-        exit 1
-      fi
-
-
-      # if JAVA_HOME is not set we're not happy
-
-      if [ -z "$JAVA_HOME" ]; then
-        echo "You must set the JAVA_HOME variable before running CARBON."
-        exit 1
-      fi
-
-
-      if [ -e "$CARBON_HOME/wso2carbon.pid" ]; then
-        PID=`cat "$CARBON_HOME"/wso2carbon.pid`
-      fi
-
-
-      # ----- Process the input command
-      ----------------------------------------------
-
-      args=""
-
-      for c in $*
-
-      do
-          if [ "$c" = "--debug" ] || [ "$c" = "-debug" ] || [ "$c" = "debug" ]; then
-                CMD="--debug"
-                continue
-          elif [ "$CMD" = "--debug" ]; then
-                if [ -z "$PORT" ]; then
-                      PORT=$c
-                fi
-          elif [ "$c" = "--stop" ] || [ "$c" = "-stop" ] || [ "$c" = "stop" ]; then
-                CMD="stop"
-          elif [ "$c" = "--start" ] || [ "$c" = "-start" ] || [ "$c" = "start" ]; then
-                CMD="start"
-          elif [ "$c" = "--version" ] || [ "$c" = "-version" ] || [ "$c" = "version" ]; then
-                CMD="version"
-          elif [ "$c" = "--restart" ] || [ "$c" = "-restart" ] || [ "$c" = "restart" ]; then
-                CMD="restart"
-          elif [ "$c" = "--test" ] || [ "$c" = "-test" ] || [ "$c" = "test" ]; then
-                CMD="test"
-          else
-              args="$args $c"
-          fi
-      done
-
-
-      if [ "$CMD" = "--debug" ]; then
-        if [ "$PORT" = "" ]; then
-          echo " Please specify the debug port after the --debug option"
-          exit 1
-        fi
-        if [ -n "$JAVA_OPTS" ]; then
-          echo "Warning !!!. User specified JAVA_OPTS will be ignored, once you give the --debug option."
-        fi
-        CMD="RUN"
-        JAVA_OPTS="-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=$PORT"
-        echo "Please start the remote debugging client to continue..."
-      elif [ "$CMD" = "start" ]; then
-        if [ -e "$CARBON_HOME/wso2carbon.pid" ]; then
-          if  ps -p $PID > /dev/null ; then
-            echo "Process is already running"
-            exit 0
-          fi
-        fi
-        export CARBON_HOME="$CARBON_HOME"
-      # using nohup sh to avoid erros in solaris OS.TODO
-        nohup sh "$CARBON_HOME"/bin/wso2server.sh $args > /dev/null 2>&1 &
-        exit 0
-      elif [ "$CMD" = "stop" ]; then
-        export CARBON_HOME="$CARBON_HOME"
-        kill -term `cat "$CARBON_HOME"/wso2carbon.pid`
-        exit 0
-      elif [ "$CMD" = "restart" ]; then
-        export CARBON_HOME="$CARBON_HOME"
-        kill -term `cat "$CARBON_HOME"/wso2carbon.pid`
-        process_status=0
-        pid=`cat "$CARBON_HOME"/wso2carbon.pid`
-        while [ "$process_status" -eq "0" ]
-        do
-              sleep 1;
-              ps -p$pid 2>&1 > /dev/null
-              process_status=$?
         done
 
-      # using nohup sh to avoid erros in solaris OS.TODO
-        nohup sh "$CARBON_HOME"/bin/wso2server.sh $args > /dev/null 2>&1 &
-        exit 0
-      elif [ "$CMD" = "test" ]; then
-          JAVACMD="exec "$JAVACMD""
-      elif [ "$CMD" = "version" ]; then
-        cat "$CARBON_HOME"/bin/version.txt
-        cat "$CARBON_HOME"/bin/wso2carbon-version.txt
-        exit 0
-      fi
+
+        # Get standard environment variables
+
+        PRGDIR=`dirname "$PRG"`
 
 
-      # ---------- Handle the SSL Issue with proper JDK version
-      --------------------
+        # Only set CARBON_HOME if not already set
 
-      java_version=$("$JAVACMD" -version 2>&1 | awk -F '"' '/version/ {print $2}')
-
-      java_version_formatted=$(echo "$java_version" | awk -F.
-      '{printf("%02d%02d",$1,$2);}')
-
-      if [ $java_version_formatted -lt 0107 ] || [ $java_version_formatted -gt
-      1100 ]; then
-         echo " Starting WSO2 Carbon (in unsupported JDK)"
-         echo " [ERROR] CARBON is supported only on JDK 1.7, 1.8, 9, 10 and 11"
-      fi
+        [ -z "$CARBON_HOME" ] && CARBON_HOME=`cd "$PRGDIR/.." ; pwd`
 
 
-      CARBON_XBOOTCLASSPATH=""
+        # Set AXIS2_HOME. Needed for One Click JAR Download
 
-      for f in "$CARBON_HOME"/lib/xboot/*.jar
+        AXIS2_HOME="$CARBON_HOME"
 
-      do
-          if [ "$f" != "$CARBON_HOME/lib/xboot/*.jar" ];then
-              CARBON_XBOOTCLASSPATH="$CARBON_XBOOTCLASSPATH":$f
+
+        # For Cygwin, ensure paths are in UNIX format before anything is touched
+
+        if $cygwin; then
+          [ -n "$JAVA_HOME" ] && JAVA_HOME=`cygpath --unix "$JAVA_HOME"`
+          [ -n "$CARBON_HOME" ] && CARBON_HOME=`cygpath --unix "$CARBON_HOME"`
+          [ -n "$AXIS2_HOME" ] && CARBON_HOME=`cygpath --unix "$CARBON_HOME"`
+        fi
+
+
+        # For OS400
+
+        if $os400; then
+          # Set job priority to standard for interactive (interactive - 6) by using
+          # the interactive priority - 6, the helper threads that respond to requests
+          # will be running at the same priority as interactive jobs.
+          COMMAND='chgjob job('$JOBNAME') runpty(6)'
+          system $COMMAND
+
+          # Enable multi threading
+          QIBM_MULTI_THREADED=Y
+          export QIBM_MULTI_THREADED
+        fi
+
+
+        # For Migwn, ensure paths are in UNIX format before anything is touched
+
+        if $mingw ; then
+          [ -n "$CARBON_HOME" ] &&
+            CARBON_HOME="`(cd "$CARBON_HOME"; pwd)`"
+          [ -n "$JAVA_HOME" ] &&
+            JAVA_HOME="`(cd "$JAVA_HOME"; pwd)`"
+          [ -n "$AXIS2_HOME" ] &&
+            CARBON_HOME="`(cd "$CARBON_HOME"; pwd)`"
+          # TODO classpath?
+        fi
+
+
+        if [ -z "$JAVACMD" ] ; then
+          if [ -n "$JAVA_HOME"  ] ; then
+            if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
+              # IBM's JDK on AIX uses strange locations for the executables
+              JAVACMD="$JAVA_HOME/jre/sh/java"
+            else
+              JAVACMD="$JAVA_HOME/bin/java"
+            fi
+          else
+            JAVACMD=java
           fi
-      done
+        fi
 
 
+        if [ ! -x "$JAVACMD" ] ; then
+          echo "Error: JAVA_HOME is not defined correctly."
+          echo " CARBON cannot execute $JAVACMD"
+          exit 1
+        fi
 
-      CARBON_CLASSPATH=""
 
-      if [ -e "$JAVA_HOME/lib/tools.jar" ]; then
-          CARBON_CLASSPATH="$JAVA_HOME/lib/tools.jar"
-      fi
+        # if JAVA_HOME is not set we're not happy
 
-      for f in "$CARBON_HOME"/bin/*.jar
+        if [ -z "$JAVA_HOME" ]; then
+          echo "You must set the JAVA_HOME variable before running CARBON."
+          exit 1
+        fi
 
-      do
-          if [ "$f" != "$CARBON_HOME/bin/*.jar" ];then
-              CARBON_CLASSPATH="$CARBON_CLASSPATH":$f
+
+        if [ -e "$CARBON_HOME/wso2carbon.pid" ]; then
+          PID=`cat "$CARBON_HOME"/wso2carbon.pid`
+        fi
+
+
+        # ----- Process the input command
+        ----------------------------------------------
+
+        args=""
+
+        for c in $*
+
+        do
+            if [ "$c" = "--debug" ] || [ "$c" = "-debug" ] || [ "$c" = "debug" ]; then
+                  CMD="--debug"
+                  continue
+            elif [ "$CMD" = "--debug" ]; then
+                  if [ -z "$PORT" ]; then
+                        PORT=$c
+                  fi
+            elif [ "$c" = "--stop" ] || [ "$c" = "-stop" ] || [ "$c" = "stop" ]; then
+                  CMD="stop"
+            elif [ "$c" = "--start" ] || [ "$c" = "-start" ] || [ "$c" = "start" ]; then
+                  CMD="start"
+            elif [ "$c" = "--version" ] || [ "$c" = "-version" ] || [ "$c" = "version" ]; then
+                  CMD="version"
+            elif [ "$c" = "--restart" ] || [ "$c" = "-restart" ] || [ "$c" = "restart" ]; then
+                  CMD="restart"
+            elif [ "$c" = "--test" ] || [ "$c" = "-test" ] || [ "$c" = "test" ]; then
+                  CMD="test"
+            else
+                args="$args $c"
+            fi
+        done
+
+
+        if [ "$CMD" = "--debug" ]; then
+          if [ "$PORT" = "" ]; then
+            echo " Please specify the debug port after the --debug option"
+            exit 1
           fi
-      done
+          if [ -n "$JAVA_OPTS" ]; then
+            echo "Warning !!!. User specified JAVA_OPTS will be ignored, once you give the --debug option."
+          fi
+          CMD="RUN"
+          JAVA_OPTS="-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=$PORT"
+          echo "Please start the remote debugging client to continue..."
+        elif [ "$CMD" = "start" ]; then
+          if [ -e "$CARBON_HOME/wso2carbon.pid" ]; then
+            if  ps -p $PID > /dev/null ; then
+              echo "Process is already running"
+              exit 0
+            fi
+          fi
+          export CARBON_HOME="$CARBON_HOME"
+        # using nohup sh to avoid erros in solaris OS.TODO
+          nohup sh "$CARBON_HOME"/bin/wso2server.sh $args > /dev/null 2>&1 &
+          exit 0
+        elif [ "$CMD" = "stop" ]; then
+          export CARBON_HOME="$CARBON_HOME"
+          kill -term `cat "$CARBON_HOME"/wso2carbon.pid`
+          exit 0
+        elif [ "$CMD" = "restart" ]; then
+          export CARBON_HOME="$CARBON_HOME"
+          kill -term `cat "$CARBON_HOME"/wso2carbon.pid`
+          process_status=0
+          pid=`cat "$CARBON_HOME"/wso2carbon.pid`
+          while [ "$process_status" -eq "0" ]
+          do
+                sleep 1;
+                ps -p$pid 2>&1 > /dev/null
+                process_status=$?
+          done
 
-      for t in "$CARBON_HOME"/lib/*.jar
+        # using nohup sh to avoid erros in solaris OS.TODO
+          nohup sh "$CARBON_HOME"/bin/wso2server.sh $args > /dev/null 2>&1 &
+          exit 0
+        elif [ "$CMD" = "test" ]; then
+            JAVACMD="exec "$JAVACMD""
+        elif [ "$CMD" = "version" ]; then
+          cat "$CARBON_HOME"/bin/version.txt
+          cat "$CARBON_HOME"/bin/wso2carbon-version.txt
+          exit 0
+        fi
 
-      do
-          CARBON_CLASSPATH="$CARBON_CLASSPATH":$t
-      done
 
+        # ---------- Handle the SSL Issue with proper JDK version
+        --------------------
 
+        java_version=$("$JAVACMD" -version 2>&1 | awk -F '"' '/version/ {print
+        $2}')
 
-      # For Cygwin, switch paths to Windows format before running java
+        java_version_formatted=$(echo "$java_version" | awk -F.
+        '{printf("%02d%02d",$1,$2);}')
 
-      if $cygwin; then
-        JAVA_HOME=`cygpath --absolute --windows "$JAVA_HOME"`
-        CARBON_HOME=`cygpath --absolute --windows "$CARBON_HOME"`
-        AXIS2_HOME=`cygpath --absolute --windows "$CARBON_HOME"`
-        CLASSPATH=`cygpath --path --windows "$CLASSPATH"`
-        CARBON_CLASSPATH=`cygpath --path --windows "$CARBON_CLASSPATH"`
-        CARBON_XBOOTCLASSPATH=`cygpath --path --windows "$CARBON_XBOOTCLASSPATH"`
-      fi
+        if [ $java_version_formatted -lt 0107 ] || [ $java_version_formatted -gt
+        1100 ]; then
+           echo " Starting WSO2 Carbon (in unsupported JDK)"
+           echo " [ERROR] CARBON is supported only on JDK 1.7, 1.8, 9, 10 and 11"
+        fi
 
 
-      # ----- Execute The Requested Command
-      -----------------------------------------
+        CARBON_XBOOTCLASSPATH=""
 
+        for f in "$CARBON_HOME"/lib/xboot/*.jar
 
-      echo JAVA_HOME environment variable is set to $JAVA_HOME
+        do
+            if [ "$f" != "$CARBON_HOME/lib/xboot/*.jar" ];then
+                CARBON_XBOOTCLASSPATH="$CARBON_XBOOTCLASSPATH":$f
+            fi
+        done
 
-      echo CARBON_HOME environment variable is set to "$CARBON_HOME"
 
 
-      cd "$CARBON_HOME"
+        CARBON_CLASSPATH=""
 
+        if [ -e "$JAVA_HOME/lib/tools.jar" ]; then
+            CARBON_CLASSPATH="$JAVA_HOME/lib/tools.jar"
+        fi
 
-      TMP_DIR="$CARBON_HOME"/tmp
+        for f in "$CARBON_HOME"/bin/*.jar
 
-      if [ -d "$TMP_DIR" ]; then
+        do
+            if [ "$f" != "$CARBON_HOME/bin/*.jar" ];then
+                CARBON_CLASSPATH="$CARBON_CLASSPATH":$f
+            fi
+        done
 
-      rm -rf "$TMP_DIR"/*
+        for t in "$CARBON_HOME"/lib/*.jar
 
-      fi
+        do
+            CARBON_CLASSPATH="$CARBON_CLASSPATH":$t
+        done
 
 
-      START_EXIT_STATUS=121
 
-      status=$START_EXIT_STATUS
+        # For Cygwin, switch paths to Windows format before running java
 
+        if $cygwin; then
+          JAVA_HOME=`cygpath --absolute --windows "$JAVA_HOME"`
+          CARBON_HOME=`cygpath --absolute --windows "$CARBON_HOME"`
+          AXIS2_HOME=`cygpath --absolute --windows "$CARBON_HOME"`
+          CLASSPATH=`cygpath --path --windows "$CLASSPATH"`
+          CARBON_CLASSPATH=`cygpath --path --windows "$CARBON_CLASSPATH"`
+          CARBON_XBOOTCLASSPATH=`cygpath --path --windows "$CARBON_XBOOTCLASSPATH"`
+        fi
 
-      if [ -z "$JVM_MEM_OPTS" ]; then
-         java_version=$("$JAVACMD" -version 2>&1 | awk -F '"' '/version/ {print $2}')
-         JVM_MEM_OPTS="-Xms256m -Xmx1024m"
-         if [ "$java_version" \< "1.8" ]; then
-            JVM_MEM_OPTS="$JVM_MEM_OPTS -XX:MaxPermSize=256m"
-         fi
-      fi
 
-      echo "Using Java memory options: $JVM_MEM_OPTS"
+        # ----- Execute The Requested Command
+        -----------------------------------------
 
 
-      #To monitor a Carbon server in remote JMX mode on linux host machines, set
-      the below system property.
+        echo JAVA_HOME environment variable is set to $JAVA_HOME
 
-      #   -Djava.rmi.server.hostname="your.IP.goes.here"
+        echo CARBON_HOME environment variable is set to "$CARBON_HOME"
 
 
-      JAVA_VER_BASED_OPTS=""
+        cd "$CARBON_HOME"
 
 
-      NASHRON_ARGS=""
+        TMP_DIR="$CARBON_HOME"/tmp
 
+        if [ -d "$TMP_DIR" ]; then
 
-      if [ $java_version_formatted -ge 1100 ]; then
-       NASHRON_ARGS="--no-deprecation-warning"
-          JAVA_VER_BASED_OPTS="--add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens java.rmi/sun.rmi.transport=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED"
-      fi
+        rm -rf "$TMP_DIR"/*
 
+        fi
 
 
-      while [ "$status" = "$START_EXIT_STATUS" ]
+        START_EXIT_STATUS=121
 
-      do
-          $JAVACMD \
-          -Xbootclasspath/a:"$CARBON_XBOOTCLASSPATH" \
-          $JVM_MEM_OPTS \
-          -XX:+HeapDumpOnOutOfMemoryError \
-          -XX:HeapDumpPath="$CARBON_HOME/repository/logs/heap-dump.hprof" \
-          $JAVA_OPTS \
-          -Dcom.sun.management.jmxremote \
-          -classpath "$CARBON_CLASSPATH" \
-          $JAVA_VER_BASED_OPTS \
-          -Djava.io.tmpdir="$CARBON_HOME/tmp" \
-          -Dcatalina.base="$CARBON_HOME/lib/tomcat" \
-          -Dwso2.server.standalone=true \
-          -Dcarbon.registry.root=/ \
-          -Djava.command="$JAVACMD" \
-          -Dcarbon.home="$CARBON_HOME" \
-          -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager \
-          -Dcarbon.config.dir.path="$CARBON_HOME/repository/conf" \
-          -Djava.util.logging.config.file="$CARBON_HOME/repository/conf/etc/logging-bridge.properties" \
-          -Dcomponents.repo="$CARBON_HOME/repository/components/plugins" \
-          -Dconf.location="$CARBON_HOME/repository/conf"\
-          -Dcom.atomikos.icatch.file="$CARBON_HOME/lib/transactions.properties" \
-          -Dcom.atomikos.icatch.hide_init_file_path=true \
-          -Dorg.apache.jasper.compiler.Parser.STRICT_QUOTE_ESCAPING=false \
-          -Dorg.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER=true \
-          -Dcom.sun.jndi.ldap.connect.pool.authentication=simple  \
-          -Dcom.sun.jndi.ldap.connect.pool.timeout=3000  \
-          -Dorg.terracotta.quartz.skipUpdateCheck=true \
-          -Djava.security.egd=file:/dev/./urandom \
-          -Dfile.encoding=UTF8 \
-          -Djava.net.preferIPv4Stack=true \
-          -Dcom.ibm.cacheLocalHost=true \
-          -DworkerNode=false \
-          -DenableCorrelationLogs=false \
-          -Dhttpclient.hostnameVerifier="DefaultAndLocalhost" \
-          -Dorg.apache.xml.security.ignoreLineBreaks=false \
-          -Dnashorn.args="$NASHRON_ARGS" \
-          -Dcarbon.new.config.dir.path="$CARBON_HOME/repository/resources/conf" \
-          org.wso2.carbon.bootstrap.Bootstrap $*
-          -javaagent:/home/wso2carbon/prometheus/jmx_prometheus_javaagent-0.12.0.jar=2222:/home/wso2carbon/prometheus/config.yaml \
-          status=$?
-      done
+        status=$START_EXIT_STATUS
 
-- apiVersion: v1
-  kind: ConfigMap
-  metadata:
-    name: identity-server-conf
-  data:
-    deployment.toml: >-
-      # Deployment config for identity server deployment
 
-      [server]
+        if [ -z "$JVM_MEM_OPTS" ]; then
+           java_version=$("$JAVACMD" -version 2>&1 | awk -F '"' '/version/ {print $2}')
+           JVM_MEM_OPTS="-Xms256m -Xmx1024m"
+           if [ "$java_version" \< "1.8" ]; then
+              JVM_MEM_OPTS="$JVM_MEM_OPTS -XX:MaxPermSize=256m"
+           fi
+        fi
 
-      hostname = "$env{HOST_NAME}"
+        echo "Using Java memory options: $JVM_MEM_OPTS"
 
-      node_ip = "$env{NODE_IP}"
 
-      #base_path = "https://$ref{server.hostname}:${carbon.management.port}"
+        #To monitor a Carbon server in remote JMX mode on linux host machines,
+        set the below system property.
 
+        #   -Djava.rmi.server.hostname="your.IP.goes.here"
 
-      [super_admin]
 
-      username = "admin"
+        JAVA_VER_BASED_OPTS=""
 
-      password = "admin"
 
-      create_admin_account = true
+        NASHRON_ARGS=""
 
 
-      [user_store]
+        if [ $java_version_formatted -ge 1100 ]; then
+         NASHRON_ARGS="--no-deprecation-warning"
+            JAVA_VER_BASED_OPTS="--add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens java.rmi/sun.rmi.transport=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED"
+        fi
 
-      type = "database_unique_id"
 
 
-      [database.user]
+        while [ "$status" = "$START_EXIT_STATUS" ]
 
-      url = "jdbc:mysql://wso2is-rdbms-service-mysql:3306/WSO2IS_SHARED_DB?autoReconnect=true&amp;useSSL=false"
+        do
+            $JAVACMD \
+            -Xbootclasspath/a:"$CARBON_XBOOTCLASSPATH" \
+            $JVM_MEM_OPTS \
+            -XX:+HeapDumpOnOutOfMemoryError \
+            -XX:HeapDumpPath="$CARBON_HOME/repository/logs/heap-dump.hprof" \
+            $JAVA_OPTS \
+            -Dcom.sun.management.jmxremote \
+            -classpath "$CARBON_CLASSPATH" \
+            $JAVA_VER_BASED_OPTS \
+            -Djava.io.tmpdir="$CARBON_HOME/tmp" \
+            -Dcatalina.base="$CARBON_HOME/lib/tomcat" \
+            -Dwso2.server.standalone=true \
+            -Dcarbon.registry.root=/ \
+            -Djava.command="$JAVACMD" \
+            -Dcarbon.home="$CARBON_HOME" \
+            -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager \
+            -Dcarbon.config.dir.path="$CARBON_HOME/repository/conf" \
+            -Djava.util.logging.config.file="$CARBON_HOME/repository/conf/etc/logging-bridge.properties" \
+            -Dcomponents.repo="$CARBON_HOME/repository/components/plugins" \
+            -Dconf.location="$CARBON_HOME/repository/conf"\
+            -Dcom.atomikos.icatch.file="$CARBON_HOME/lib/transactions.properties" \
+            -Dcom.atomikos.icatch.hide_init_file_path=true \
+            -Dorg.apache.jasper.compiler.Parser.STRICT_QUOTE_ESCAPING=false \
+            -Dorg.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER=true \
+            -Dcom.sun.jndi.ldap.connect.pool.authentication=simple  \
+            -Dcom.sun.jndi.ldap.connect.pool.timeout=3000  \
+            -Dorg.terracotta.quartz.skipUpdateCheck=true \
+            -Djava.security.egd=file:/dev/./urandom \
+            -Dfile.encoding=UTF8 \
+            -Djava.net.preferIPv4Stack=true \
+            -Dcom.ibm.cacheLocalHost=true \
+            -DworkerNode=false \
+            -DenableCorrelationLogs=false \
+            -Dhttpclient.hostnameVerifier="DefaultAndLocalhost" \
+            -Dorg.apache.xml.security.ignoreLineBreaks=false \
+            -Dnashorn.args="$NASHRON_ARGS" \
+            -Dcarbon.new.config.dir.path="$CARBON_HOME/repository/resources/conf" \
+            org.wso2.carbon.bootstrap.Bootstrap $*
+            -javaagent:/home/wso2carbon/prometheus/jmx_prometheus_javaagent-0.12.0.jar=2222:/home/wso2carbon/prometheus/config.yaml \
+            status=$?
+        done
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: identity-server-conf
+    data:
+      deployment.toml: >-
+        # Deployment config for identity server deployment
 
-      username = "wso2carbon"
+        [server]
 
-      password = "wso2carbon"
+        hostname = "$env{HOST_NAME}"
 
-      driver = "com.mysql.cj.jdbc.Driver"
+        node_ip = "$env{NODE_IP}"
 
-      [database.user.pool_options]
+        #base_path = "https://$ref{server.hostname}:${carbon.management.port}"
 
-      validationQuery = "SELECT 1"
 
+        [super_admin]
 
-      [transport.https.properties]
+        username = "admin"
 
-      proxyPort="443"
+        password = "admin"
 
+        create_admin_account = true
 
-      [database.identity_db]
 
-      url = "jdbc:mysql://wso2is-rdbms-service-mysql:3306/WSO2IS_IDENTITY_DB?autoReconnect=true&amp;useSSL=false"
+        # [user_store]
 
-      username = "wso2carbon"
+        # type = "database_unique_id"
 
-      password = "wso2carbon"
+        [user_store]
+        type = "read_write_ldap_unique_id"
 
-      driver = "com.mysql.cj.jdbc.Driver"
+        connection_url = "ldap://localhost:${Ports.EmbeddedLDAP.LDAPServerPort}"
 
-      [database.identity_db.pool_options]
+        connection_name = "uid=admin,ou=system"
 
-      validationQuery = "SELECT 1"
+        connection_password = "admin"
 
+        base_dn = "dc=wso2,dc=org"      #refers the base dn on which the user and group search bases will be generated
 
-      [database.shared_db]
+        [database.identity_db]
 
-      url = "jdbc:mysql://wso2is-rdbms-service-mysql:3306/WSO2IS_SHARED_DB?autoReconnect=true&amp;useSSL=false"
+        type = "h2"
 
-      username = "wso2carbon"
+        url = "jdbc:h2:./repository/database/WSO2IDENTITY_DB;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=60000"
 
-      password = "wso2carbon"
+        username = "wso2carbon"
 
-      driver = "com.mysql.cj.jdbc.Driver"
+        password = "wso2carbon"
 
-      [database.shared_db.pool_options]
+        [database.shared_db]
 
-      validationQuery = "SELECT 1"
+        type = "h2"
 
+        url = "jdbc:h2:./repository/database/WSO2SHARED_DB;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=60000"
 
-      [database.bps_database]
+        username = "wso2carbon"
 
-      url = "jdbc:mysql://wso2is-rdbms-service-mysql:3306/WSO2IS_BPS_DB?autoReconnect=true&amp;useSSL=false"
+        password = "wso2carbon"
 
-      username = "wso2carbon"
 
-      password = "wso2carbon"
+        [keystore.primary]
 
-      driver = "com.mysql.cj.jdbc.Driver"
+        name = "wso2carbon.jks"
 
-      [database.bps_database.pool_options]
+        password = "wso2carbon"
 
-      validationQuery = "SELECT 1"
 
+        [hazelcast]
 
-      [[datasource]]
+        "hazelcast.shutdownhook.enabled" = "false"
 
-      id = "WSO2ConsentDS"
+        "hazelcast.logging.type"= "log4j"
 
-      url = "jdbc:mysql://wso2is-rdbms-service-mysql:3306/WSO2IS_CONSENT_DB?autoReconnect=true&amp;useSSL=false"
 
-      username = "wso2carbon"
+        [clustering]
 
-      password = "wso2carbon"
+        membership_scheme="kubernetes"
 
-      driver = "com.mysql.cj.jdbc.Driver"
+        domain="wso2.carbon.domain"
 
-      pool_options.validationQuery="SELECT 1"
+        properties.membershipSchemeClassName="org.wso2.carbon.membership.scheme.kubernetes.KubernetesMembershipScheme"
 
-      pool_options.maxActive=50
+        properties.KUBERNETES_NAMESPACE="${OPENSHIFT_PROJECT_NAME}"
 
-      pool_options.maxWait = 60000 # wait in milliseconds
+        properties.KUBERNETES_SERVICES="wso2is-pattern-ha-service"
 
-      pool_options.testOnBorrow = true
+        properties.KUBERNETES_MASTER_SKIP_SSL_VERIFICATION="true"
 
-      pool_options.jmxEnabled = false
-
-
-      [authentication.consent]
-
-      data_source="jdbc/WSO2ConsentDS"
-
-
-      [keystore.primary]
-
-      name = "wso2carbon.jks"
-
-      password = "wso2carbon"
-
-
-      [hazelcast]
-
-      "hazelcast.shutdownhook.enabled" = "false"
-
-      "hazelcast.logging.type"= "log4j"
-
-
-      [clustering]
-
-      membership_scheme="kubernetes"
-
-      domain="wso2.carbon.domain"
-
-      properties.membershipSchemeClassName="org.wso2.carbon.membership.scheme.kubernetes.KubernetesMembershipScheme"
-
-      properties.KUBERNETES_NAMESPACE="${OPENSHIFT_PROJECT_NAME}"
-
-      properties.KUBERNETES_SERVICES="wso2is-pattern-ha-service"
-
-      properties.KUBERNETES_MASTER_SKIP_SSL_VERIFICATION="true"
-
-      properties.USE_DNS="false"
-
-- apiVersion: apps.openshift.io/v1
-  kind: DeploymentConfig
-  metadata:
-    name: ${NAME}-ha-deployment
-  spec:
-    minReadySeconds: 30
-    progressDeadlineSeconds: 600
-    replicas: ${REPLICAS}
-    selector:
-      app: wso2is
-      deployment: wso2is
-      monitoring: jmx
-    strategy:
-      rollingParams:
-        maxSurge: 1
-        maxUnavailable: 0
-      type: Rolling
-    template:
-      metadata:
-        labels:
-          app: wso2is
-          deployment: wso2is
-          monitoring: jmx
-      spec:
-        containers:
-          - env:
-              - name: NODE_IP
-                valueFrom:
-                  fieldRef:
-                    apiVersion: v1
-                    fieldPath: status.podIP
-              - name: HOST_NAME
-                value: wso2is
-            image: '${WSO2_IS_IMAGE_NAME}'
-            imagePullPolicy: Always
-            lifecycle:
-              preStop:
+        properties.USE_DNS="false"
+  - apiVersion: apps.openshift.io/v1
+    kind: DeploymentConfig
+    metadata:
+      name: '${NAME}-ha-deployment'
+    spec:
+      minReadySeconds: 30
+      progressDeadlineSeconds: 600
+      replicas: '${REPLICAS}'
+      selector:
+        app: wso2is
+        deployment: wso2is
+        monitoring: jmx
+      strategy:
+        rollingParams:
+          maxSurge: 1
+          maxUnavailable: 0
+        type: Rolling
+      template:
+        metadata:
+          labels:
+            app: wso2is
+            deployment: wso2is
+            monitoring: jmx
+        spec:
+          containers:
+            - resources:
+                limits:
+                  cpu: '${RESOURCES_LIMITS_CPU}'
+                  memory: '${RESOURCES_LIMITS_MEMORY}'
+                requests:
+                  cpu: '${RESOURCES_REQUEST_CPU}'
+                  memory: '${RESOURCES_REQUEST_MEMORY}'
+              readinessProbe:
                 exec:
                   command:
-                    - sh
+                    - /bin/sh
                     - '-c'
-                    - '${WSO2_SERVER_HOME}/bin/wso2server.sh stop'
-            livenessProbe:
-              exec:
-                command:
-                  - /bin/sh
-                  - '-c'
-                  - nc -z localhost 9443
-              initialDelaySeconds: 100
-              periodSeconds: 10
-            name: wso2is
-            ports:
-              - containerPort: 9763
-                protocol: TCP
-              - containerPort: 9443
-                protocol: TCP
-            readinessProbe:
-              exec:
-                command:
-                  - /bin/sh
-                  - '-c'
-                  - nc -z localhost 9443
-              initialDelaySeconds: 100
-              periodSeconds: 10
-            resources:
-              limits:
-                cpu: '${RESOURCES_LIMITS_CPU}'
-                memory: ${RESOURCES_LIMITS_MEMORY}
-              requests:
-                cpu: '${RESOURCES_REQUEST_CPU}'
-                memory: ${RESOURCES_REQUEST_MEMORY}
-            volumeMounts:
-              - name: wso2is-userstore
-              # need to change
-                mountPath: /home/wso2carbon/wso2is-5.10.0-beta2/repository/deployment/server/userstores
-              - name: identity-server-conf
-                mountPath: /home/wso2carbon/wso2-config-volume/repository/conf/deployment.toml
-                subPath: deployment.toml
-        # imagePullSecrets:
-        # - name: ${IMAGE_PULL_SECRET}
-        securityContext:
-          runAsUser: 802
-        serviceAccount: ${WSO2_IS_SERVICE_ACCOUNT_NAME}
-        serviceAccountName: ${WSO2_IS_SERVICE_ACCOUNT_NAME}
-        terminationGracePeriodSeconds: 30
-        volumes:
-          - name: wso2is-userstore
-            persistentVolumeClaim:
-              claimName: wso2is-userstore
-          - configMap:
-              defaultMode: 420
+                    - nc -z localhost 9443
+                initialDelaySeconds: 100
+                periodSeconds: 10
+              lifecycle:
+                preStop:
+                  exec:
+                    command:
+                      - sh
+                      - '-c'
+                      - '${WSO2_SERVER_HOME}/bin/wso2server.sh stop'
+              name: wso2is
+              livenessProbe:
+                exec:
+                  command:
+                    - /bin/sh
+                    - '-c'
+                    - nc -z localhost 9443
+                initialDelaySeconds: 100
+                periodSeconds: 10
+              env:
+                - name: NODE_IP
+                  valueFrom:
+                    fieldRef:
+                      apiVersion: v1
+                      fieldPath: status.podIP
+                - name: HOST_NAME
+                  value: wso2is
+              ports:
+                - containerPort: 9763
+                  protocol: TCP
+                - containerPort: 9443
+                  protocol: TCP
+              imagePullPolicy: Always
+              volumeMounts:
+                - name: wso2is-userstore
+                  mountPath: >-
+                    /home/wso2carbon/wso2is-5.10.0/repository/deployment/server/userstores
+                - name: identity-server-conf
+                  mountPath: >-
+                    /home/wso2carbon/wso2-config-volume/repository/conf/deployment.toml
+                  subPath: deployment.toml
+              image: '${WSO2_IS_IMAGE_NAME}'
+          securityContext:
+            runAsUser: 802
+          serviceAccount: '${WSO2_IS_SERVICE_ACCOUNT_NAME}'
+          serviceAccountName: '${WSO2_IS_SERVICE_ACCOUNT_NAME}'
+          terminationGracePeriodSeconds: 30
+          volumes:
+            - name: wso2is-userstore
+              persistentVolumeClaim:
+                claimName: wso2
+            - configMap:
+                defaultMode: 420
+                name: identity-server-conf
               name: identity-server-conf
-            name: identity-server-conf
-    triggers:
-      - type: ConfigChange 
-      - type: ImageChange
-        imageChangeParams:
-          automatic: true
-          containerNames:
-          - init-is-db
-          from:
-            kind: ImageStreamTag
-            name: wso2is-init-image-stream:latest
-
-- apiVersion: v1
-  kind: Service
-  metadata:
-    name: ${NAME}-pattern-ha-service
-  spec:
-    selector:
-      app: wso2is
-      monitoring: jmx  
-    type: ClusterIP
-    ports:
-      - name: servlet-http
-        port: 9763
-        protocol: TCP
-        targetPort: 9763
-      - name: servlet-https
-        port: 9443
-        protocol: TCP
-        targetPort: 9443
-
-- apiVersion: route.openshift.io/v1
-  kind: Route
-  metadata:
-    name: ${NAME}-ha-router
-  spec:
-    port:
-      targetPort: servlet-https
-    tls:
-      insecureEdgeTerminationPolicy: Redirect
-      termination: passthrough
-    to:
-      kind: Service
-      name: wso2is-pattern-ha-service
-
+      triggers:
+        - type: ConfigChange
+        - type: ImageChange
+          imageChangeParams:
+            automatic: true
+            containerNames:
+              - init-is-db
+            from:
+              kind: ImageStreamTag
+              name: 'wso2is-init-image-stream:latest'
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: '${NAME}-pattern-ha-service'
+    spec:
+      selector:
+        app: wso2is
+        monitoring: jmx
+      type: ClusterIP
+      ports:
+        - name: servlet-http
+          port: 9763
+          protocol: TCP
+          targetPort: 9763
+        - name: servlet-https
+          port: 9443
+          protocol: TCP
+          targetPort: 9443
+  - apiVersion: route.openshift.io/v1
+    kind: Route
+    metadata:
+      name: '${NAME}-ha-router'
+    spec:
+      port:
+        targetPort: servlet-https
+      tls:
+        insecureEdgeTerminationPolicy: Redirect
+        termination: passthrough
+      to:
+        kind: Service
+        name: wso2is-pattern-ha-service
 parameters:
-- name: OPENSHIFT_PROJECT_NAME
-  displayName: Name of the OpenShift project.
-  required: true
-  value: wso2
-
-- name: NAME
-  displayName: Name of the deployment.
-  required: true
-  value: wso2is
-
-- name: REPLICAS
-  displayName: Number of replicas
-  required: true
-  value: '2'
-
-- name: WSO2_IS_IMAGE_NAME
-  displayName: WSO2 Identity Server image name
-  required: true
-  value: docker.wso2.com/wso2is:5.10.0
-
-- name: IMAGE_PULL_SECRET
-  displayName: WSO2 Subscription Credentials
-  required: true
-  value: wso2-image-pull-secret
-
-- name: NFS_SERVER_IP
-  displayName: NFS Server IP
-  required: true
-  value: ""
-
-- name: NFS_SHARE_USERSTORE
-  displayName: NFS Share Path for userstore
-  required: true
-  value: ""
-  
-- name: RESOURCES_LIMITS_CPU
-  displayName: Set a CPU resource limits
-  required: true
-  value: '4000m'
-
-- name: RESOURCES_LIMITS_MEMORY
-  displayName: Set a memory resource limits
-  required: true
-  value: '4Gi'
-
-- name: RESOURCES_REQUEST_CPU
-  displayName: Set a minimum CPU resource limits
-  required: true
-  value: '2000m'
-
-- name: RESOURCES_REQUEST_MEMORY
-  displayName: Set a minimum memory resource limits
-  required: true
-  value: '2Gi'
-
-- name: WSO2_IS_SERVICE_ACCOUNT_NAME
-  displayName:
-  required: true
-  value: wso2svc-account
-
+  - name: OPENSHIFT_PROJECT_NAME
+    displayName: Name of the OpenShift project.
+    value: wso2
+    required: true
+  - name: NAME
+    displayName: Name of the deployment.
+    value: wso2is
+    required: true
+  - name: REPLICAS
+    displayName: Number of replicas
+    value: '2'
+    required: true
+  - name: WSO2_IS_IMAGE_NAME
+    displayName: WSO2 Identity Server image name
+    value: 'registry.hub.docker.com/inthirakumaaran/wso2is:latest'
+    required: true
+  - name: RESOURCES_LIMITS_CPU
+    displayName: Set a CPU resource limits
+    value: 4000m
+    required: true
+  - name: RESOURCES_LIMITS_MEMORY
+    displayName: Set a memory resource limits
+    value: 4Gi
+    required: true
+  - name: RESOURCES_REQUEST_CPU
+    displayName: Set a minimum CPU resource limits
+    value: 2000m
+    required: true
+  - name: RESOURCES_REQUEST_MEMORY
+    displayName: Set a minimum memory resource limits
+    value: 2Gi
+    required: true
+  - name: WSO2_IS_SERVICE_ACCOUNT_NAME
+    displayName: Get account name
+    value: wso2svc-account
+    required: true
