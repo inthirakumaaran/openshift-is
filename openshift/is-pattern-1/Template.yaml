@@ -98,37 +98,6 @@ objects:
 - apiVersion: v1
   kind: PersistentVolume
   metadata:
-    name: ${NAME}-rdbms-service-mysql
-    labels:
-      volumeName: ${NAME}-rdbms-service-mysql
-  spec:
-    accessModes:
-    - ReadWriteOnce
-    volumeMode: Filesystem
-    capacity:
-      storage: 8Gi
-    nfs:
-      server: ${NFS_SERVER_IP}
-      path: ${NFS_SHARE_DATABASE}
-
-- apiVersion: v1
-  kind: PersistentVolumeClaim
-  metadata:
-    name: ${NAME}-rdbms-service-mysql
-  spec:
-    accessModes:
-    - ReadWriteOnce
-    resources:
-      requests:
-        storage: 8Gi
-    volumeMode: Filesystem
-    selector:
-      matchLabels:
-        volumeName: ${NAME}-rdbms-service-mysql
-
-- apiVersion: v1
-  kind: PersistentVolume
-  metadata:
     name: ${NAME}-userstore
     labels:
       volumeName: ${NAME}-userstore
@@ -156,37 +125,6 @@ objects:
     selector:
       matchLabels:
         volumeName: ${NAME}-userstore
-
-- apiVersion: v1
-  kind: PersistentVolume
-  metadata:
-    name: ${NAME}-tenants
-    labels:
-      volumeName: ${NAME}-tenants
-  spec:
-    accessModes:
-    - ReadWriteOnce
-    volumeMode: Filesystem
-    capacity:
-      storage: 3Gi
-    nfs:
-      server: ${NFS_SERVER_IP}
-      path: ${NFS_SHARE_TENANT}
-      
-- apiVersion: v1
-  kind: PersistentVolumeClaim
-  metadata:
-    name: ${NAME}-tenants
-  spec:
-    accessModes:
-    - ReadWriteOnce
-    resources:
-      requests:
-        storage: 3Gi
-    volumeMode: Filesystem
-    selector:
-      matchLabels:
-        volumeName: ${NAME}-tenants
         
 - apiVersion: v1
   kind: ConfigMap
@@ -864,8 +802,6 @@ objects:
                 cpu: '${RESOURCES_REQUEST_CPU}'
                 memory: ${RESOURCES_REQUEST_MEMORY}
             volumeMounts:
-              - name: wso2is-tenants
-                mountPath: /home/wso2carbon/wso2is-5.10.0-beta2/repository/tenants
               - name: wso2is-userstore
                 mountPath: /home/wso2carbon/wso2is-5.10.0-beta2/repository/deployment/server/userstores
               - name: identity-server-conf
@@ -879,9 +815,6 @@ objects:
         serviceAccountName: ${WSO2_IS_SERVICE_ACCOUNT_NAME}
         terminationGracePeriodSeconds: 30
         volumes:
-          - name: wso2is-tenants
-            persistentVolumeClaim:
-              claimName: wso2is-tenants
           - name: wso2is-userstore
             persistentVolumeClaim:
               claimName: wso2is-userstore
@@ -964,18 +897,8 @@ parameters:
   required: true
   value: ""
 
-- name: NFS_SHARE_DATABASE
-  displayName: NFS Share Path for database
-  required: true
-  value: ""
-
 - name: NFS_SHARE_USERSTORE
   displayName: NFS Share Path for userstore
-  required: true
-  value: ""
-
-- name: NFS_SHARE_TENANT
-  displayName: NFS Share Path for tenant
   required: true
   value: ""
   
