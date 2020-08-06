@@ -32,17 +32,6 @@ objects:
 - apiVersion: image.openshift.io/v1
   kind: ImageStream
   metadata:
-    name: ${NAME}-rdbms-image-stream
-  spec:
-    tags:
-      - name: latest
-        from:
-          kind: DockerImage
-          name: 'mysql:5.7'
-
-- apiVersion: image.openshift.io/v1
-  kind: ImageStream
-  metadata:
     name: ${NAME}-init-image-stream
   spec:
     tags:
@@ -803,12 +792,13 @@ objects:
                 memory: ${RESOURCES_REQUEST_MEMORY}
             volumeMounts:
               - name: wso2is-userstore
+              # need to change
                 mountPath: /home/wso2carbon/wso2is-5.10.0-beta2/repository/deployment/server/userstores
               - name: identity-server-conf
                 mountPath: /home/wso2carbon/wso2-config-volume/repository/conf/deployment.toml
                 subPath: deployment.toml
-        imagePullSecrets:
-        - name: ${IMAGE_PULL_SECRET}
+        # imagePullSecrets:
+        # - name: ${IMAGE_PULL_SECRET}
         securityContext:
           runAsUser: 802
         serviceAccount: ${WSO2_IS_SERVICE_ACCOUNT_NAME}
