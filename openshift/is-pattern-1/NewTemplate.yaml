@@ -570,6 +570,10 @@ objects:
 
       validationQuery = "SELECT 1"
 
+      defaultAutoCommit="false"
+      
+      commitOnReturn="true"
+
 
       [transport.https.properties]
 
